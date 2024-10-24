@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -157,9 +157,13 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+-- required by bufferline
+vim.opt.termguicolors = true
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
-
+require 'keymaps'
+require 'options'
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
@@ -255,6 +259,8 @@ require('lazy').setup({
       },
     },
   },
+
+  { 'akinsho/bufferline.nvim', version = '*', dependencies = 'nvim-tree/nvim-web-devicons' },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
@@ -821,6 +827,13 @@ require('lazy').setup({
           { name = 'path' },
         },
       }
+      -- set up vim-dadbod
+      cmp.setup.filetype({ 'sql' }, {
+        sources = {
+          { name = 'vim-dadbod-completion' },
+          { name = 'buffer' },
+        },
+      })
     end,
   },
 
@@ -835,10 +848,14 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'tokyonight-day'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
+
+      -- keymap for light and dark themes
+      vim.keymap.set('n', '<leader>li', ':colorscheme tokyonight-day<cr>')
+      vim.keymap.set('n', '<leader>da', ':colorscheme tokyonight-moon<cr>')
     end,
   },
 
@@ -920,8 +937,8 @@ require('lazy').setup({
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
@@ -929,7 +946,30 @@ require('lazy').setup({
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
+
+  -- lazygit
+  {
+    'kdheepak/lazygit.nvim',
+    cmd = {
+      'LazyGit',
+      'LazyGitConfig',
+      'LazyGitCurrentFile',
+      'LazyGitFilter',
+      'LazyGitFilterCurrentFile',
+    },
+    -- optional for floating window border decoration
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+    },
+    -- setting the keybinding for LazyGit with 'keys' is recommended in
+    -- order to load the plugin when the command is run for the first time
+    keys = {
+      { '<leader>lg', '<cmd>LazyGit<cr>', desc = 'LazyGit' },
+    },
+  },
+
+  { 'github/copilot.vim' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
@@ -954,3 +994,62 @@ require('lazy').setup({
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+
+-- File copy function
+local function copy_file(src, dst)
+  local input = io.open(src, 'rb')
+  if not input then
+    return false
+  end
+  local output = io.open(dst, 'wb')
+  if not output then
+    input:close()
+    return false
+  end
+  local content = input:read '*all'
+  output:write(content)
+  input:close()
+  output:close()
+  return true
+end
+
+-- Function to create or open daily note
+local function open_daily_note()
+  local date = os.date '%Y-%m-%d'
+  local yesterday = os.date('%Y-%m-%d', os.time() - 86400) -- 86400 seconds in a day
+  local dir_path = '02 Areas/Daily'
+  local file_path = dir_path .. '/' .. date .. '.md'
+  local yesterday_path = dir_path .. '/' .. yesterday .. '.md'
+
+  -- Ensure the directory exists
+  vim.fn.mkdir(dir_path, 'p')
+
+  -- Check if today's file exists
+  local f = io.open(file_path, 'r')
+  if f then
+    f:close()
+    vim.cmd('edit ' .. file_path)
+  else
+    -- Check if yesterday's file exists
+    local y = io.open(yesterday_path, 'r')
+    if y then
+      y:close()
+      -- Copy yesterday's file
+      local copy_success = copy_file(yesterday_path, file_path)
+      -- Open the new file
+      vim.cmd('edit ' .. file_path)
+      -- Replace the first line with today's date
+      vim.api.nvim_buf_set_lines(0, 0, 1, false, { '# ' .. date })
+      vim.cmd 'write' -- Save the file
+    else
+      vim.cmd('edit ' .. file_path)
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, { '# ' .. date })
+      vim.cmd 'write' -- Save the file
+    end
+  end
+end
+
+-- Keybinding to open daily note
+vim.keymap.set('n', '<leader>dn', open_daily_note, { desc = 'Open Daily Note' })
+
+require('bufferline').setup {}
