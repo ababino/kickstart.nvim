@@ -34,40 +34,50 @@ local function copy_file(src, dst)
   return true
 end
 
+-- Helper function to get date string for X days ago
+local function get_date_days_ago(days)
+    return os.date('%Y-%m-%d', os.time() - (86400 * days))
+end
+
 -- Function to create or open daily note
 local function open_daily_note()
-  local date = os.date '%Y-%m-%d'
-  local yesterday = os.date('%Y-%m-%d', os.time() - 86400) -- 86400 seconds in a day
-  local dir_path = '02 Areas/Daily'
-  local file_path = dir_path .. '/' .. date .. '.md'
-  local yesterday_path = dir_path .. '/' .. yesterday .. '.md'
+    local date = os.date('%Y-%m-%d')
+    local dir_path = '02 Areas/Daily'
+    local file_path = dir_path .. '/' .. date .. '.md'
 
-  -- Ensure the directory exists
-  vim.fn.mkdir(dir_path, 'p')
+    -- Ensure the directory exists
+    vim.fn.mkdir(dir_path, 'p')
 
-  -- Check if today's file exists
-  local f = io.open(file_path, 'r')
-  if f then
-    f:close()
-    vim.cmd('edit ' .. file_path)
-  else
-    -- Check if yesterday's file exists
-    local y = io.open(yesterday_path, 'r')
-    if y then
-      y:close()
-      -- Copy yesterday's file
-      local copy_success = copy_file(yesterday_path, file_path)
-      -- Open the new file
-      vim.cmd('edit ' .. file_path)
-      -- Replace the first line with today's date
-      vim.api.nvim_buf_set_lines(0, 0, 1, false, { '# ' .. date })
-      vim.cmd 'write' -- Save the file
-    else
-      vim.cmd('edit ' .. file_path)
-      vim.api.nvim_buf_set_lines(0, 0, -1, false, { '# ' .. date })
-      vim.cmd 'write' -- Save the file
+    -- Check if today's file exists
+    local f = io.open(file_path, 'r')
+    if f then
+        f:close()
+        vim.cmd('edit ' .. file_path)
+        return
     end
-  end
+
+    -- Look back up to 7 days for the most recent note
+    for i = 1, 7 do
+        local past_date = get_date_days_ago(i)
+        local past_file_path = dir_path .. '/' .. past_date .. '.md'
+        local past_file = io.open(past_file_path, 'r')
+        
+        if past_file then
+            past_file:close()
+            -- Found a previous note, copy it
+            local copy_success = copy_file(past_file_path, file_path)
+            vim.cmd('edit ' .. file_path)
+            -- Replace the first line with today's date
+            vim.api.nvim_buf_set_lines(0, 0, 1, false, { '# ' .. date })
+            vim.cmd('write')
+            return
+        end
+    end
+
+    -- If no notes found in the last 7 days, create a new one
+    vim.cmd('edit ' .. file_path)
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { '# ' .. date })
+    vim.cmd('write')
 end
 
 -- Keybinding to open daily note
