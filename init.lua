@@ -185,14 +185,15 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 -- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
 -- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
+-- commenting this to use the vim-tmux-navigator plugin
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
 --
 --  See `:help wincmd` for a list of all window commands
-vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
-vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+--vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
+--vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
+-- vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
+-- vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -208,6 +209,7 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.g.python3_host_prog = '/Users/andres/.config/nvim/_env/bin/python'
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -231,7 +233,7 @@ vim.opt.rtp:prepend(lazypath)
 --    :Lazy update
 --
 -- NOTE: Here is where you install your plugins.
-require('lazy').setup({
+require('lazy').setup {
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
@@ -404,6 +406,7 @@ require('lazy').setup({
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'emoji')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
@@ -412,7 +415,22 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
-      vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      -- vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+
+      vim.keymap.set('n', '<leader>sg', function()
+        local args = {}
+
+        if vim.fn.filereadable '.ripgreprc' == 1 then
+          args = { '--glob', '!"/Users/andres/Library/Mobile Documents/iCloud~md~obsidian/Documents/main/04 Archive/**"' }
+        end
+
+        builtin.live_grep {
+          additional_args = function()
+            return args
+          end,
+        }
+      end, { desc = '[S]earch by [G]rep' })
+
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
@@ -613,7 +631,14 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {
+          settings = {
+            python = {
+              pythonPath = vim.fn.exepath 'python',
+              venvPath = './.venv',
+            },
+          },
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -686,7 +711,7 @@ require('lazy').setup({
       },
     },
     opts = {
-      notify_on_error = false,
+      notify_on_error = true,
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
@@ -706,10 +731,11 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'isort', 'black' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        sql = { 'sql-formatter' },
       },
     },
   },
@@ -781,11 +807,11 @@ require('lazy').setup({
           -- Accept ([y]es) the completion.
           --  This will auto-import if your LSP supports it.
           --  This will expand snippets if the LSP sent a snippet.
-          ['<C-y>'] = cmp.mapping.confirm { select = true },
+          -- ['<C-y>'] = cmp.mapping.confirm { select = true },
 
           -- If you prefer more traditional completion keymaps,
           -- you can uncomment the following lines
-          --['<CR>'] = cmp.mapping.confirm { select = true },
+          ['<CR>'] = cmp.mapping.confirm { select = true },
           --['<Tab>'] = cmp.mapping.select_next_item(),
           --['<S-Tab>'] = cmp.mapping.select_prev_item(),
 
@@ -825,6 +851,7 @@ require('lazy').setup({
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
           { name = 'path' },
+          { name = 'emoji' },
         },
       }
       -- set up vim-dadbod
@@ -836,6 +863,25 @@ require('lazy').setup({
       })
     end,
   },
+  {
+    'catppuccin/nvim',
+    name = 'catppuccin',
+    priority = 1000,
+    init = function()
+      -- Load the colorscheme here.
+      -- Like many other themes, this one has different styles, and you could load
+      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
+      vim.cmd.colorscheme 'catppuccin-latte'
+
+      -- You can configure highlights by doing something like:
+      vim.cmd.hi 'Comment gui=none'
+
+      -- keymap for light and dark themes
+      -- vim.keymap.set('n', '<leader>li', ':colorscheme tokyonight-day<cr>')
+      vim.keymap.set('n', '<leader>li', ':colorscheme catppuccin-latte<cr>')
+      vim.keymap.set('n', '<leader>da', ':colorscheme catppuccin-macchiato<cr>')
+    end,
+  },
 
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
@@ -844,19 +890,6 @@ require('lazy').setup({
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
     'folke/tokyonight.nvim',
     priority = 1000, -- Make sure to load this before all the other start plugins.
-    init = function()
-      -- Load the colorscheme here.
-      -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-day'
-
-      -- You can configure highlights by doing something like:
-      vim.cmd.hi 'Comment gui=none'
-
-      -- keymap for light and dark themes
-      vim.keymap.set('n', '<leader>li', ':colorscheme tokyonight-day<cr>')
-      vim.keymap.set('n', '<leader>da', ':colorscheme tokyonight-moon<cr>')
-    end,
   },
 
   -- Highlight todo, notes, etc in comments
@@ -905,7 +938,7 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'sql', 'python' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -970,7 +1003,17 @@ require('lazy').setup({
   },
 
   { 'github/copilot.vim' },
-}, {
+  { 'rcarriga/nvim-notify' },
+  -- { 'dccsillag/magma-nvim', run = ':UpdateRemotePlugins' },
+  {
+    'benlubas/molten-nvim',
+    version = '^1.0.0', -- use version <2.0.0 to avoid breaking changes
+    build = ':UpdateRemotePlugins',
+    init = function()
+      -- this is an example, not a default. Please see the readme for more configuration options
+      vim.g.molten_output_win_max_height = 12
+    end,
+  },
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
     -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table
@@ -990,66 +1033,76 @@ require('lazy').setup({
       lazy = '💤 ',
     },
   },
-})
+}
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 
--- File copy function
-local function copy_file(src, dst)
-  local input = io.open(src, 'rb')
-  if not input then
-    return false
-  end
-  local output = io.open(dst, 'wb')
-  if not output then
-    input:close()
-    return false
-  end
-  local content = input:read '*all'
-  output:write(content)
-  input:close()
-  output:close()
-  return true
-end
-
--- Function to create or open daily note
-local function open_daily_note()
-  local date = os.date '%Y-%m-%d'
-  local yesterday = os.date('%Y-%m-%d', os.time() - 86400) -- 86400 seconds in a day
-  local dir_path = '02 Areas/Daily'
-  local file_path = dir_path .. '/' .. date .. '.md'
-  local yesterday_path = dir_path .. '/' .. yesterday .. '.md'
-
-  -- Ensure the directory exists
-  vim.fn.mkdir(dir_path, 'p')
-
-  -- Check if today's file exists
-  local f = io.open(file_path, 'r')
-  if f then
-    f:close()
-    vim.cmd('edit ' .. file_path)
-  else
-    -- Check if yesterday's file exists
-    local y = io.open(yesterday_path, 'r')
-    if y then
-      y:close()
-      -- Copy yesterday's file
-      local copy_success = copy_file(yesterday_path, file_path)
-      -- Open the new file
-      vim.cmd('edit ' .. file_path)
-      -- Replace the first line with today's date
-      vim.api.nvim_buf_set_lines(0, 0, 1, false, { '# ' .. date })
-      vim.cmd 'write' -- Save the file
-    else
-      vim.cmd('edit ' .. file_path)
-      vim.api.nvim_buf_set_lines(0, 0, -1, false, { '# ' .. date })
-      vim.cmd 'write' -- Save the file
-    end
-  end
-end
-
--- Keybinding to open daily note
-vim.keymap.set('n', '<leader>dn', open_daily_note, { desc = 'Open Daily Note' })
-
+-- -- File copy function
+-- local function copy_file(src, dst)
+--   local input = io.open(src, 'rb')
+--   if not input then
+--     return false
+--   end
+--   local output = io.open(dst, 'wb')
+--   if not output then
+--     input:close()
+--     return false
+--   end
+--   local content = input:read '*all'
+--   output:write(content)
+--   input:close()
+--   output:close()
+--   return true
+-- end
+--
+-- -- Function to create or open daily note
+-- local function open_daily_note()
+--   local date = os.date '%Y-%m-%d'
+--   local yesterday = os.date('%Y-%m-%d', os.time() - 86400) -- 86400 seconds in a day
+--   local dir_path = '02 Areas/Daily'
+--   local file_path = dir_path .. '/' .. date .. '.md'
+--   local yesterday_path = dir_path .. '/' .. yesterday .. '.md'
+--
+--   -- Ensure the directory exists
+--   vim.fn.mkdir(dir_path, 'p')
+--
+--   -- Check if today's file exists
+--   local f = io.open(file_path, 'r')
+--   if f then
+--     f:close()
+--     vim.cmd('edit ' .. file_path)
+--   else
+--     -- Check if yesterday's file exists
+--     local y = io.open(yesterday_path, 'r')
+--     if y then
+--       y:close()
+--       -- Copy yesterday's file
+--       local copy_success = copy_file(yesterday_path, file_path)
+--       -- Open the new file
+--       vim.cmd('edit ' .. file_path)
+--       -- Replace the first line with today's date
+--       vim.api.nvim_buf_set_lines(0, 0, 1, false, { '# ' .. date })
+--       vim.cmd 'write' -- Save the file
+--     else
+--       vim.cmd('edit ' .. file_path)
+--       vim.api.nvim_buf_set_lines(0, 0, -1, false, { '# ' .. date })
+--       vim.cmd 'write' -- Save the file
+--     end
+--   end
+-- end
+--
+-- -- Keybinding to open daily note
+-- vim.keymap.set('n', '<leader>dn', open_daily_note, { desc = 'Open Daily Note' })
+--
 require('bufferline').setup {}
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'sql',
+  callback = function()
+    vim.bo.commentstring = '-- %s'
+  end,
+})
+
+-- vim.keymap.set('n', '<C-/>', 'gcc')
+-- vim.keymap.set('v', '<C-/>', 'gc')
